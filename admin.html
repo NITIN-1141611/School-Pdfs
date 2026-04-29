@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ScholarVault — Admin Panel</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --bg:       #0d0f1a;
+      --surface:  #141627;
+      --surface2: #1c1f36;
+      --border:   rgba(255,255,255,0.07);
+      --a1:       #6c63ff;
+      --a2:       #00d4aa;
+      --a3:       #ff6584;
+      --a4:       #ffb347;
+      --text:     #e8eaf6;
+      --muted:    #7b7f9e;
+      --radius:   14px;
+      --tr:       0.25s cubic-bezier(0.4,0,0.2,1);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ─── Topbar ─── */
+    .topbar {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(13,15,26,0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .topbar-brand {
+      font-family: 'Syne', sans-serif;
+      font-size: 20px;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--a1), var(--a2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .topbar-badge {
+      background: linear-gradient(135deg, var(--a1), #a855f7);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-family: 'DM Sans', sans-serif;
+      -webkit-text-fill-color: #fff;
+    }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .btn-logout {
+      background: rgba(255,101,132,0.12);
+      border: 1px solid rgba(255,101,132,0.3);
+      color: var(--a3);
+      padding: 7px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
+      transition: all var(--tr);
+    }
+    .btn-logout:hover { background: rgba(255,101,132,0.2); }
+
+    /* ─── Layout ─── */
+    .page { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+    /* Tab Nav */
+    .tab-nav {
+      display: flex;
+      gap: 6px;
+      background: var(--surface);
+      padding: 6px;
+      border-radius: 14px;
+      margin-bottom: 32px;
+      border: 1px solid var(--border);
+      overflow-x: auto;
+    }
+    .tab-btn {
+      flex: 1;
+      min-width: 120px;
+      padding: 10px 20px;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all var(--tr);
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: var(--text); background: var(--surface2); }
+    .tab-btn.active {
+      background: linear-gradient(135deg, var(--a1), var(--a2));
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(108,99,255,0.3);
+    }
+    .tab-pane { display: none; animation: fadeIn 0.3s ease; }
+    .tab-pane.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ─── Section Heading ─── */
+    .section-heading {
+      font-family: 'Syne', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .section-sub {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+
+    /* ─── Card ─── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      margin-bottom: 24px;
+    }
+    .card-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ─── Form Controls ─── */
+    .form-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+    .form-group { flex: 1; min-width: 180px; }
+    .form-group label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 7px;
+    }
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 14px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      outline: none;
+      transition: border-color var(--tr), box-shadow var(--tr);
+    }
+    .form-group select option { background: var(--surface2); }
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: var(--a1);
+      box-shadow: 0 0 0 3px rgba(108,99,255,0.12);
+    }
+
+    /* File Input Styled */
+    .file-input-wrap {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all var(--tr);
+      position: relative;
+    }
+    .file-input-wrap:hover, .file-input-wrap.drag-over {
+      border-color: var(--a2);
+      background: rgba(0,212,170,0.04);
+    }
+    .file-input-wrap input[type="file"] {
+      position: absolute; inset: 0;
+      opacity: 0; cursor: pointer;
+      width: 100%; height: 100%;
+    }
+    .file-icon { font-size: 32px; margin-bottom: 8px; }
+    .file-hint { font-size: 13px; color: var(--muted); }
+    .file-name {
+      font-size: 13px; color: var(--a2);
+      font-weight: 600; margin-top: 6px;
+      display: none;
+    }
+
+    /* Progress Bar */
+    .progress-wrap {
+      margin-top: 12px;
+      display: none;
+    }
+    .progress-wrap.show { display: block; }
+    .progress-bar {
+      height: 6px;
+      background: var(--surface2);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--a1), var(--a2));
+      border-radius: 99px;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    .progress-label { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+    /* ─── Buttons ─── */
+    .btn {
+      padding: 11px 22px;
+      border: none;
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--tr);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--a1), var(--a2));
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(108,99,255,0.25);
+    }
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(108,99,255,0.4);
+    }
+    .btn-danger {
+      background: rgba(255,101,132,0.12);
+      border: 1px solid rgba(255,101,132,0.25);
+      color: var(--a3);
+    }
+    .btn-danger:hover:not(:disabled) { background: rgba(255,101,132,0.22); }
+    .btn-ghost {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover:not(:disabled) { background: rgba(255,255,255,0.06); }
+    .btn-success {
+      background: rgba(0,212,170,0.12);
+      border: 1px solid rgba(0,212,170,0.25);
+      color: var(--a2);
+    }
+    .btn-success:hover:not(:disabled) { background: rgba(0,212,170,0.22); }
+    .btn-sm { padding: 6px 14px; font-size: 12px; border-radius: 8px; }
+
+    /* Spinner */
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Chapter Grid ─── */
+    .chapter-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+    }
+    .chapter-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: transform var(--tr), box-shadow var(--tr);
+      animation: fadeIn 0.3s ease both;
+    }
+    .chapter-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    .chapter-card-top { display: flex; align-items: flex-start; gap: 12px; }
+    .chapter-icon {
+      width: 42px; height: 42px;
+      background: linear-gradient(135deg, var(--a1), var(--a2));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .chapter-info { flex: 1; }
+    .chapter-name {
+      font-weight: 600; font-size: 14px;
+      line-height: 1.4;
+      margin-bottom: 3px;
+    }
+    .chapter-class {
+      font-size: 12px; color: var(--muted);
+    }
+    .chapter-class span {
+      background: rgba(108,99,255,0.15);
+      color: #a5a0ff;
+      padding: 1px 8px;
+      border-radius: 99px;
+      font-size: 11px;
+    }
+
+    /* ─── Keys Table ─── */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th {
+      background: var(--surface2);
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    td {
+      padding: 12px 16px;
+      font-size: 13px;
+      border-top: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    /* Badge */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-admin   { background: rgba(108,99,255,0.15); color: #a5a0ff; }
+    .badge-student { background: rgba(0,212,170,0.12); color: var(--a2); }
+    .badge-active  { background: rgba(0,212,170,0.12); color: var(--a2); }
+    .badge-inactive{ background: rgba(255,101,132,0.12); color: var(--a3); }
+
+    /* ─── Toast ─── */
+    .toast-container {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .toast {
+      min-width: 280px;
+      max-width: 360px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+      animation: toastIn 0.35s cubic-bezier(0.4,0,0.2,1) both;
+    }
+    .toast.error  { border-color: rgba(255,101,132,0.3); }
+    .toast.success{ border-color: rgba(0,212,170,0.3); }
+    .toast-icon { font-size: 18px; flex-shrink: 0; }
+    .toast-close {
+      margin-left: auto;
+      background: none; border: none;
+      color: var(--muted); cursor: pointer;
+      font-size: 16px; line-height: 1;
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(30px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    /* ─── Empty State ─── */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--muted);
+    }
+    .empty-state .em { font-size: 40px; margin-bottom: 12px; }
+    .empty-state p { font-size: 14px; }
+
+    /* ─── Key Value Display ─── */
+    .key-display {
+      font-family: monospace;
+      font-size: 13px;
+      background: var(--surface2);
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 1px;
+    }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 640px) {
+      .topbar { padding: 0 16px; }
+      .page { padding: 20px 14px; }
+      .form-row { flex-direction: column; }
+      .tab-btn { min-width: 90px; font-size: 12px; padding: 9px 12px; }
+      .chapter-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ─── Topbar ─── -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      📚 ScholarVault
+      <span class="topbar-badge">🛡️ Admin</span>
+    </div>
+    <div class="topbar-right">
+      <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </header>
+
+  <!-- ─── Page Content ─── -->
+  <div class="page">
+
+    <!-- Tab Nav -->
+    <div class="tab-nav">
+      <button class="tab-btn active" data-tab="upload">📤 Upload PDF</button>
+      <button class="tab-btn" data-tab="chapters">📚 Chapters</button>
+      <button class="tab-btn" data-tab="keys">🔑 Access Keys</button>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!--  TAB 1: Upload PDF                          -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="tab-pane active" id="tab-upload">
+      <div class="section-heading">Upload Chapter PDF</div>
+      <div class="section-sub">Add a new chapter PDF for a specific class</div>
+
+      <div class="card">
+        <div class="card-title">📄 New Chapter</div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Class Name</label>
+            <input type="text" id="upClass" placeholder="e.g. Class 9"/>
+          </div>
+          <div class="form-group">
+            <label>Chapter Name</label>
+            <input type="text" id="upChapter" placeholder="e.g. Chapter 1 – Motion"/>
+          </div>
+        </div>
+
+        <!-- File Drop Zone -->
+        <div class="form-group" style="margin-bottom:20px;">
+          <label>PDF File</label>
+          <div class="file-input-wrap" id="dropZone">
+            <input type="file" id="pdfFile" accept="application/pdf" onchange="handleFileChange(this)"/>
+            <div class="file-icon">📎</div>
+            <div class="file-hint">Click to choose or drag & drop a PDF</div>
+            <div class="file-name" id="fileName"></div>
+          </div>
+          <!-- Upload Progress -->
+          <div class="progress-wrap" id="progressWrap">
+            <div class="progress-bar">
+              <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-label" id="progressLabel">Uploading…</div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="uploadBtn" onclick="uploadChapter()">
+          📤 Upload Chapter
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!--  TAB 2: Chapters List                       -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="tab-pane" id="tab-chapters">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:8px;">
+        <div>
+          <div class="section-heading">All Chapters</div>
+          <div class="section-sub">Manage uploaded chapters</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <input type="text" id="filterClass"
+            style="background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:9px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:160px;"
+            placeholder="Filter by class…"
+            oninput="renderChapters()"/>
+          <button class="btn btn-ghost btn-sm" onclick="loadChapters()">🔄 Refresh</button>
+        </div>
+      </div>
+
+      <div id="chaptersGrid" class="chapter-grid">
+        <div class="empty-state">
+          <div class="em">📭</div>
+          <p>Loading chapters…</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!--  TAB 3: Access Keys                         -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="tab-pane" id="tab-keys">
+      <div class="section-heading">Access Keys</div>
+      <div class="section-sub">Create and manage login keys for admins and students</div>
+
+      <!-- Create Key -->
+      <div class="card">
+        <div class="card-title">➕ Create New Key</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Access Key</label>
+            <input type="text" id="newKey" placeholder="e.g. STUDENT-CLASS9-A01"/>
+          </div>
+          <div class="form-group">
+            <label>Role</label>
+            <select id="newRole" onchange="toggleClassInput()">
+              <option value="student">🎓 Student</option>
+              <option value="admin">🛡️ Admin</option>
+            </select>
+          </div>
+          <div class="form-group" id="classInputWrap">
+            <label>Class (for students)</label>
+            <input type="text" id="newClass" placeholder="e.g. Class 9"/>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="createKey()">➕ Create Key</button>
+          <button class="btn btn-ghost" onclick="generateKey()">🎲 Generate Random Key</button>
+        </div>
+      </div>
+
+      <!-- Keys Table -->
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div style="padding:18px 24px;display:flex;align-items:center;justify-content:space-between;">
+          <div class="card-title" style="margin:0;">🔑 All Keys</div>
+          <button class="btn btn-ghost btn-sm" onclick="loadKeys()">🔄 Refresh</button>
+        </div>
+        <div class="table-wrap" id="keysTable">
+          <div class="empty-state"><div class="em">🔐</div><p>Loading keys…</p></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /page -->
+
+  <script>
+    // ═══════════════════════════════════════════════════
+    //  SUPABASE CONFIG — Replace with your own values
+    // ═══════════════════════════════════════════════════
+    const SUPABASE_URL = 'https://nnbtffzamofaholdppeg.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uYnRmZnphbW9mYWhvbGRwcGVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NTU4MzAsImV4cCI6MjA5MzAzMTgzMH0.4QFwo496onhTcrwGhrRfyxRMP_H-V-QQ8U_TDTqJCP4';
+
+    const { createClient } = supabase;
+    const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // ─── Auth Guard ──────────────────────────────────
+    const role = localStorage.getItem('role');
+    if (role !== 'admin') {
+      window.location.href = 'index.html';
+    }
+
+    // ─── In-memory chapter store ─────────────────────
+    let allChapters = [];
+
+    // ─── Tab Switching ───────────────────────────────
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+
+        // Load data on tab switch
+        if (btn.dataset.tab === 'chapters') loadChapters();
+        if (btn.dataset.tab === 'keys')     loadKeys();
+      });
+    });
+
+    // ─── Toast ───────────────────────────────────────
+    function toast(msg, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      const el = document.createElement('div');
+      el.className = `toast ${type}`;
+      el.innerHTML = `
+        <span class="toast-icon">${type === 'success' ? '✅' : '❌'}</span>
+        <span>${msg}</span>
+        <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+      `;
+      container.appendChild(el);
+      setTimeout(() => el.remove(), 4000);
+    }
+
+    // ─── File Drop / Choose ───────────────────────────
+    function handleFileChange(input) {
+      const file = input.files[0];
+      if (file) {
+        document.getElementById('fileName').textContent = `📎 ${file.name}`;
+        document.getElementById('fileName').style.display = 'block';
+      }
+    }
+    const dropZone = document.getElementById('dropZone');
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file && file.type === 'application/pdf') {
+        document.getElementById('pdfFile').files = e.dataTransfer.files;
+        handleFileChange(document.getElementById('pdfFile'));
+      }
+    });
+
+    // ─── Upload Chapter ───────────────────────────────
+    async function uploadChapter() {
+      const cls     = document.getElementById('upClass').value.trim();
+      const chapter = document.getElementById('upChapter').value.trim();
+      const file    = document.getElementById('pdfFile').files[0];
+      const btn     = document.getElementById('uploadBtn');
+
+      if (!cls || !chapter || !file) {
+        toast('Please fill all fields and choose a PDF.', 'error');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Uploading…';
+
+      // Show progress
+      const progressWrap  = document.getElementById('progressWrap');
+      const progressFill  = document.getElementById('progressFill');
+      const progressLabel = document.getElementById('progressLabel');
+      progressWrap.classList.add('show');
+
+      // Simulate progress start
+      progressFill.style.width = '20%';
+      progressLabel.textContent = 'Uploading to storage…';
+
+      try {
+        // 1) Upload file to Supabase storage bucket "pdfs"
+        const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+        const { data: storageData, error: storageError } = await db.storage
+          .from('pdfs')
+          .upload(fileName, file, { contentType: 'application/pdf', upsert: false });
+
+        if (storageError) throw storageError;
+
+        progressFill.style.width = '60%';
+        progressLabel.textContent = 'Getting public URL…';
+
+        // 2) Get public URL
+        const { data: urlData } = db.storage
+          .from('pdfs')
+          .getPublicUrl(fileName);
+
+        const pdfUrl = urlData.publicUrl;
+        progressFill.style.width = '80%';
+        progressLabel.textContent = 'Saving to database…';
+
+        // 3) Insert chapter record
+        const { error: dbError } = await db
+          .from('chapters')
+          .insert([{ class: cls, chapter: chapter, pdf_url: pdfUrl }]);
+
+        if (dbError) throw dbError;
+
+        progressFill.style.width = '100%';
+        progressLabel.textContent = 'Done!';
+
+        toast('Chapter uploaded successfully! 🎉', 'success');
+
+        // Reset form
+        document.getElementById('upClass').value    = '';
+        document.getElementById('upChapter').value  = '';
+        document.getElementById('pdfFile').value    = '';
+        document.getElementById('fileName').style.display = 'none';
+
+        setTimeout(() => {
+          progressWrap.classList.remove('show');
+          progressFill.style.width = '0%';
+        }, 1500);
+
+      } catch (err) {
+        console.error(err);
+        toast('Upload failed: ' + (err.message || 'Unknown error'), 'error');
+        progressWrap.classList.remove('show');
+      }
+
+      btn.disabled = false;
+      btn.innerHTML = '📤 Upload Chapter';
+    }
+
+    // ─── Load Chapters ───────────────────────────────
+    async function loadChapters() {
+      const grid = document.getElementById('chaptersGrid');
+      grid.innerHTML = '<div class="empty-state"><div class="em">⏳</div><p>Loading…</p></div>';
+
+      const { data, error } = await db
+        .from('chapters')
+        .select('*')
+        .order('id', { ascending: false });
+
+      if (error) {
+        toast('Failed to load chapters', 'error');
+        return;
+      }
+      allChapters = data || [];
+      renderChapters();
+    }
+
+    function renderChapters() {
+      const grid   = document.getElementById('chaptersGrid');
+      const filter = document.getElementById('filterClass').value.trim().toLowerCase();
+      const data   = filter ? allChapters.filter(c => c.class.toLowerCase().includes(filter)) : allChapters;
+
+      if (!data.length) {
+        grid.innerHTML = '<div class="empty-state"><div class="em">📭</div><p>No chapters found. Upload one above!</p></div>';
+        return;
+      }
+
+      grid.innerHTML = data.map(ch => `
+        <div class="chapter-card" id="chcard-${ch.id}">
+          <div class="chapter-card-top">
+            <div class="chapter-icon">📄</div>
+            <div class="chapter-info">
+              <div class="chapter-name">${escapeHtml(ch.chapter)}</div>
+              <div class="chapter-class"><span>${escapeHtml(ch.class)}</span></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <a href="${ch.pdf_url}" target="_blank" class="btn btn-success btn-sm">🔍 Preview</a>
+            <button class="btn btn-danger btn-sm" onclick="deleteChapter(${ch.id}, '${escapeHtml(ch.chapter)}')">🗑️ Delete</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ─── Delete Chapter ──────────────────────────────
+    async function deleteChapter(id, name) {
+      if (!confirm(`Delete chapter "${name}"?`)) return;
+
+      const { error } = await db.from('chapters').delete().eq('id', id);
+      if (error) { toast('Delete failed', 'error'); return; }
+
+      allChapters = allChapters.filter(c => c.id !== id);
+      renderChapters();
+      toast('Chapter deleted.', 'success');
+    }
+
+    // ─── Load Access Keys ────────────────────────────
+    async function loadKeys() {
+      const wrap = document.getElementById('keysTable');
+      wrap.innerHTML = '<div class="empty-state"><div class="em">⏳</div><p>Loading…</p></div>';
+
+      const { data, error } = await db
+        .from('access_keys')
+        .select('*')
+        .order('id', { ascending: false });
+
+      if (error) { toast('Failed to load keys', 'error'); return; }
+
+      if (!data || !data.length) {
+        wrap.innerHTML = '<div class="empty-state"><div class="em">🔐</div><p>No keys yet. Create one above!</p></div>';
+        return;
+      }
+
+      wrap.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Access Key</th>
+              <th>Role</th>
+              <th>Class</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.map(k => `
+              <tr id="keyrow-${k.id}">
+                <td style="color:var(--muted)">${k.id}</td>
+                <td><span class="key-display">${escapeHtml(k.key)}</span></td>
+                <td><span class="badge badge-${k.role}">${k.role === 'admin' ? '🛡️' : '🎓'} ${k.role}</span></td>
+                <td>${k.class || '<span style="color:var(--muted)">—</span>'}</td>
+                <td>
+                  <span class="badge badge-${k.active ? 'active' : 'inactive'}">
+                    ${k.active ? '✅ Active' : '⛔ Inactive'}
+                  </span>
+                </td>
+                <td style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <button class="btn btn-ghost btn-sm" onclick="toggleKey(${k.id}, ${k.active})">
+                    ${k.active ? '⛔ Disable' : '✅ Enable'}
+                  </button>
+                  <button class="btn btn-danger btn-sm" onclick="deleteKey(${k.id})">🗑️</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    // ─── Create Key ───────────────────────────────────
+    async function createKey() {
+      const key   = document.getElementById('newKey').value.trim();
+      const role  = document.getElementById('newRole').value;
+      const cls   = document.getElementById('newClass').value.trim();
+
+      if (!key) { toast('Please enter a key value.', 'error'); return; }
+      if (role === 'student' && !cls) { toast('Class is required for students.', 'error'); return; }
+
+      const payload = { key, role, active: true, class: role === 'student' ? cls : null };
+
+      const { error } = await db.from('access_keys').insert([payload]);
+      if (error) {
+        toast('Failed: ' + (error.message || 'Duplicate key?'), 'error');
+        return;
+      }
+
+      toast(`Key "${key}" created successfully!`, 'success');
+      document.getElementById('newKey').value   = '';
+      document.getElementById('newClass').value = '';
+      loadKeys();
+    }
+
+    // ─── Toggle Key Active ────────────────────────────
+    async function toggleKey(id, currentActive) {
+      const { error } = await db
+        .from('access_keys')
+        .update({ active: !currentActive })
+        .eq('id', id);
+      if (error) { toast('Update failed', 'error'); return; }
+      toast(`Key ${!currentActive ? 'enabled' : 'disabled'}.`, 'success');
+      loadKeys();
+    }
+
+    // ─── Delete Key ───────────────────────────────────
+    async function deleteKey(id) {
+      if (!confirm('Delete this access key? This cannot be undone.')) return;
+      const { error } = await db.from('access_keys').delete().eq('id', id);
+      if (error) { toast('Delete failed', 'error'); return; }
+      toast('Key deleted.', 'success');
+      loadKeys();
+    }
+
+    // ─── Toggle Class Input ───────────────────────────
+    function toggleClassInput() {
+      const role = document.getElementById('newRole').value;
+      document.getElementById('classInputWrap').style.display = role === 'student' ? 'block' : 'none';
+    }
+
+    // ─── Generate Random Key ──────────────────────────
+    function generateKey() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      const key   = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+      document.getElementById('newKey').value = key;
+    }
+
+    // ─── Logout ───────────────────────────────────────
+    function logout() {
+      localStorage.clear();
+      window.location.href = 'index.html';
+    }
+
+    // ─── Utility ─────────────────────────────────────
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ─── Initial Load ─────────────────────────────────
+    loadChapters(); // pre-load for tab switch
+  </script>
+</body>
+</html>

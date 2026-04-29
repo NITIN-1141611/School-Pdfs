@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>School Chapter System — Login</title>
+
+  <!-- Google Fonts: Syne (display) + DM Sans (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+
+  <!-- Supabase JS (v2 CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    /* ─── CSS Variables ─────────────────────────────── */
+    :root {
+      --bg:        #0d0f1a;
+      --card:      #141627;
+      --border:    rgba(255,255,255,0.07);
+      --accent1:   #6c63ff;
+      --accent2:   #00d4aa;
+      --accent3:   #ff6584;
+      --text:      #e8eaf6;
+      --muted:     #7b7f9e;
+      --success:   #00d4aa;
+      --error:     #ff6584;
+      --radius:    18px;
+      --transition: 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    /* ─── Reset ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ─── Animated Background Orbs ──────────────────── */
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.18;
+      pointer-events: none;
+      animation: drift 12s ease-in-out infinite alternate;
+    }
+    .orb-1 {
+      width: 500px; height: 500px;
+      background: var(--accent1);
+      top: -150px; left: -150px;
+      animation-delay: 0s;
+    }
+    .orb-2 {
+      width: 400px; height: 400px;
+      background: var(--accent2);
+      bottom: -100px; right: -100px;
+      animation-delay: -4s;
+    }
+    .orb-3 {
+      width: 300px; height: 300px;
+      background: var(--accent3);
+      top: 50%; left: 60%;
+      animation-delay: -8s;
+    }
+
+    @keyframes drift {
+      from { transform: translate(0, 0) scale(1); }
+      to   { transform: translate(30px, 40px) scale(1.08); }
+    }
+
+    /* ─── Noise Texture Overlay ──────────────────────── */
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ─── Login Card ─────────────────────────────────── */
+    .login-wrapper {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 440px;
+      padding: 24px;
+      animation: slideUp 0.7s cubic-bezier(0.4,0,0.2,1) both;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(40px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Logo / Brand */
+    .brand {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+    .brand-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 70px; height: 70px;
+      background: linear-gradient(135deg, var(--accent1), var(--accent2));
+      border-radius: 20px;
+      font-size: 32px;
+      margin-bottom: 16px;
+      box-shadow: 0 12px 40px rgba(108,99,255,0.4);
+      animation: pulse-icon 3s ease-in-out infinite;
+    }
+    @keyframes pulse-icon {
+      0%, 100% { box-shadow: 0 12px 40px rgba(108,99,255,0.4); }
+      50%       { box-shadow: 0 12px 60px rgba(0,212,170,0.5); }
+    }
+    .brand h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(90deg, var(--accent1), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .brand p {
+      font-size: 14px;
+      color: var(--muted);
+      margin-top: 4px;
+      font-weight: 500;
+    }
+
+    /* Card */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 36px 32px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+    }
+
+    .card-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .card-subtitle {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 28px;
+    }
+
+    /* Input Group */
+    .input-group {
+      margin-bottom: 20px;
+    }
+    .input-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .input-wrap {
+      position: relative;
+    }
+    .input-wrap span {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 18px;
+      pointer-events: none;
+      opacity: 0.6;
+    }
+    .input-wrap input {
+      width: 100%;
+      background: rgba(255,255,255,0.05);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 14px 14px 46px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+      letter-spacing: 2px;
+    }
+    .input-wrap input::placeholder { color: var(--muted); letter-spacing: 0; }
+    .input-wrap input:focus {
+      border-color: var(--accent1);
+      box-shadow: 0 0 0 3px rgba(108,99,255,0.15);
+    }
+
+    /* Eye Toggle */
+    .toggle-eye {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 18px;
+      padding: 0;
+      transition: color var(--transition);
+    }
+    .toggle-eye:hover { color: var(--text); }
+
+    /* Login Button */
+    .btn-login {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, var(--accent1), var(--accent2));
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-family: 'Syne', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform var(--transition), box-shadow var(--transition), opacity var(--transition);
+      box-shadow: 0 8px 30px rgba(108,99,255,0.35);
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-login::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: rgba(255,255,255,0.1);
+      opacity: 0;
+      transition: opacity var(--transition);
+    }
+    .btn-login:hover::before { opacity: 1; }
+    .btn-login:hover { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(108,99,255,0.5); }
+    .btn-login:active { transform: translateY(0); }
+    .btn-login:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    /* Spinner inside button */
+    .spinner {
+      display: inline-block;
+      width: 18px; height: 18px;
+      border: 2.5px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Alert */
+    .alert {
+      margin-top: 18px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      animation: fadeIn 0.3s ease;
+    }
+    .alert.show { display: flex; }
+    .alert-error  { background: rgba(255,101,132,0.15); border: 1px solid rgba(255,101,132,0.3); color: #ff8fa8; }
+    .alert-success{ background: rgba(0,212,170,0.12); border: 1px solid rgba(0,212,170,0.3); color: #00d4aa; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Divider */
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 24px 0 18px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* Role badges */
+    .roles {
+      display: flex;
+      gap: 10px;
+    }
+    .role-badge {
+      flex: 1;
+      padding: 10px 8px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      transition: all var(--transition);
+    }
+    .role-badge .emoji { display: block; font-size: 20px; margin-bottom: 3px; }
+    .role-badge.admin-badge { border-color: rgba(108,99,255,0.4); color: #a5a0ff; background: rgba(108,99,255,0.05); }
+    .role-badge.student-badge { border-color: rgba(0,212,170,0.4); color: #00d4aa; background: rgba(0,212,170,0.05); }
+
+    /* Footer note */
+    .footer-note {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ─── Mobile ─────────────────────────────────────── */
+    @media (max-width: 480px) {
+      .login-wrapper { padding: 16px; }
+      .card { padding: 28px 20px; }
+      .brand h1 { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ambient orbs -->
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <!-- ─── Login Card ─── -->
+  <div class="login-wrapper">
+
+    <!-- Brand -->
+    <div class="brand">
+      <div class="brand-icon">📚</div>
+      <h1>Nitin & Aryansh SchoolVault</h1>
+      <p>School Chapter PDF System</p>
+    </div>
+
+    <!-- Card -->
+    <div class="card">
+      <div class="card-title">Welcome Back to Nitin's Cyber World</div>
+      <div class="card-subtitle">Enter your access key to continue</div>
+
+      <!-- Access Key Input -->
+      <div class="input-group">
+        <label>Access Key</label>
+        <div class="input-wrap">
+          <span>🔑</span>
+          <input type="password" id="accessKey" placeholder="Enter your access key…" autocomplete="off" />
+          <button class="toggle-eye" id="eyeBtn" title="Show/Hide Key">👁️</button>
+        </div>
+      </div>
+
+      <!-- Login Button -->
+      <button class="btn-login" id="loginBtn" onclick="handleLogin()">
+        Sign In
+      </button>
+
+      <!-- Alert -->
+      <div class="alert" id="alert"></div>
+
+      <!-- Divider -->
+      <div class="divider">Two Access Levels</div>
+
+      <!-- Role Info -->
+      <div class="roles">
+        <div class="role-badge admin-badge">
+          <span class="emoji">🛡️</span>
+          Admin
+        </div>
+        <div class="role-badge student-badge">
+          <span class="emoji">🎓</span>
+          Student
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-note">
+      Contact your teacher if you don't have an access key
+    </div>
+  </div>
+
+  <script>
+    // ═══════════════════════════════════════════════════
+    //  SUPABASE CONFIG — Replace with your own values
+    // ═══════════════════════════════════════════════════
+    const SUPABASE_URL = 'https://nnbtffzamofaholdppeg.supabase.co';       // e.g. https://xyzabc.supabase.co
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uYnRmZnphbW9mYWhvbGRwcGVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NTU4MzAsImV4cCI6MjA5MzAzMTgzMH0.4QFwo496onhTcrwGhrRfyxRMP_H-V-QQ8U_TDTqJCP4';  // Your anon/public key
+
+    // Init Supabase client
+    const { createClient } = supabase;
+    const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // ─── Toggle password visibility ─────────────────
+    const eyeBtn    = document.getElementById('eyeBtn');
+    const keyInput  = document.getElementById('accessKey');
+
+    eyeBtn.addEventListener('click', () => {
+      const isPassword = keyInput.type === 'password';
+      keyInput.type    = isPassword ? 'text' : 'password';
+      eyeBtn.textContent = isPassword ? '🙈' : '👁️';
+    });
+
+    // Allow Enter key to trigger login
+    keyInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleLogin();
+    });
+
+    // ─── Show Alert ──────────────────────────────────
+    function showAlert(msg, type = 'error') {
+      const el = document.getElementById('alert');
+      el.className = `alert alert-${type} show`;
+      el.innerHTML = `<span>${type === 'error' ? '⚠️' : '✅'}</span> ${msg}`;
+    }
+    function hideAlert() {
+      const el = document.getElementById('alert');
+      el.classList.remove('show');
+    }
+
+    // ─── Main Login Handler ──────────────────────────
+    async function handleLogin() {
+      const key    = keyInput.value.trim();
+      const btn    = document.getElementById('loginBtn');
+
+      hideAlert();
+
+      if (!key) {
+        showAlert('Please enter your access key.');
+        return;
+      }
+
+      // Loading state
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Verifying…';
+
+      try {
+        // Query Supabase for this key (only active keys)
+        const { data, error } = await db
+          .from('access_keys')
+          .select('role, class')
+          .eq('key', key)
+          .eq('active', true)
+          .single();
+
+        if (error || !data) {
+          showAlert('Invalid or inactive access key. Please try again.');
+          btn.disabled = false;
+          btn.innerHTML = 'Sign In';
+          return;
+        }
+
+        // Valid key — save to localStorage
+        localStorage.setItem('role',  data.role);
+        localStorage.setItem('class', data.class || '');
+        localStorage.setItem('key',   key);
+
+        // Show success briefly then redirect
+        showAlert(
+          `Welcome! Logging in as <strong>${data.role.toUpperCase()}</strong>…`,
+          'success'
+        );
+
+        setTimeout(() => {
+          if (data.role === 'admin') {
+            window.location.href = 'admin.html';
+          } else {
+            window.location.href = 'dashboard.html';
+          }
+        }, 900);
+
+      } catch (err) {
+        console.error(err);
+        showAlert('Connection error. Check your Supabase config.');
+        btn.disabled = false;
+        btn.innerHTML = 'Sign In';
+      }
+    }
+
+    // ─── Redirect if already logged in ───────────────
+    (function checkSession() {
+      const role = localStorage.getItem('role');
+      if (role === 'admin')   window.location.href = 'admin.html';
+      if (role === 'student') window.location.href = 'dashboard.html';
+    })();
+  </script>
+</body>
+</html>
